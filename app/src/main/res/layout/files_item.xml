@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal"
+    android:id="@+id/folder_list_item"
+    android:paddingBottom="8dp"
+    android:paddingLeft="@dimen/global_padding"
+    android:paddingRight="@dimen/global_padding"
+    android:paddingTop="8dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/folder_thumbnail"
+            android:background="@drawable/ic_folder_blue_36dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_gravity="center_vertical"
+            android:contentDescription="icon"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/folder_name"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="10dp"
+            android:layout_toEndOf="@+id/folder_thumbnail"
+            android:maxLines="1"
+            android:textSize="18sp" />
+
+        <ImageView
+            android:id="@+id/open_camera"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_photo_camera_black_36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:tint="@color/dbx_primary"
+            android:layout_gravity="center_vertical"
+            android:contentDescription="Take photo"
+            android:scaleType="centerCrop" />
+    </RelativeLayout>
+</LinearLayout>

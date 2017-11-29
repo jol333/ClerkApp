@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Clerk\'s App</string>
+    <!-- Change this to your app key -->
+    <string name="app_key">z6i1bl31h3yvj1y</string>
+    <string name="title_activity_files">Files</string>
+    <string name="title_activity_openwith">Open With</string>
+    <string name="title_activity_view_photos">ViewPhotosActivity</string>
+</resources>
