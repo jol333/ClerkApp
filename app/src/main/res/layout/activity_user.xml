@@ -8,9 +8,9 @@
     <include layout="@layout/app_bar" />
 
     <RelativeLayout
+        android:id="@+id/relative_layout_1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/relative_layout_1"
         android:orientation="vertical"
         android:paddingBottom="@dimen/activity_vertical_margin"
         android:paddingLeft="@dimen/activity_horizontal_margin"
@@ -28,18 +28,29 @@
             android:text="Login with Dropbox" />
 
         <TextView
+            android:id="@+id/connection_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:gravity="center"
+            android:text="Connecting..."
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/name_text"
             android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:layout_height="wrap_content" />
+            android:layout_below="@id/connection_status" />
 
         <TextView
             android:id="@+id/email_text"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentRight="true"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentTop="true"
+            android:layout_below="@id/connection_status" />
 <!--
         <TextView
             android:id="@+id/type_text"
@@ -53,9 +64,9 @@
             style="@style/ButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:visibility="gone"
             android:layout_alignParentBottom="true"
-            android:text="Start New Task" />
+            android:text="Start New Task"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/pending_uploads_button"
@@ -69,12 +80,12 @@
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:src="@drawable/instructions"
-            android:layout_below="@id/email_text"
             android:layout_above="@id/pending_uploads_button"
-            android:layout_centerVertical="true"
+            android:layout_below="@id/email_text"
             android:layout_centerHorizontal="true"
-            android:padding="0dp"/>
+            android:layout_centerVertical="true"
+            android:padding="0dp"
+            android:src="@drawable/instructions" />
 
     </RelativeLayout>
 </LinearLayout>

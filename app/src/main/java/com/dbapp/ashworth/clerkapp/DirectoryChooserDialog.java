@@ -34,14 +34,6 @@ public class DirectoryChooserDialog
     private ChosenDirectoryListener m_chosenDirectoryListener = null;
     private ArrayAdapter<String> m_listAdapter = null;
 
-    //////////////////////////////////////////////////////
-    // Callback interface for selected directory
-    //////////////////////////////////////////////////////
-    public interface ChosenDirectoryListener
-    {
-        public void onChosenDir(String chosenDir);
-    }
-
     public DirectoryChooserDialog(Context context, ChosenDirectoryListener chosenDirectoryListener)
     {
         m_context = context;
@@ -57,6 +49,10 @@ public class DirectoryChooserDialog
         }
     }
 
+    public boolean getNewFolderEnabled() {
+        return m_isNewFolderEnabled;
+    }
+
     ///////////////////////////////////////////////////////////////////////
     // setNewFolderEnabled() - enable/disable new folder button
     ///////////////////////////////////////////////////////////////////////
@@ -66,26 +62,16 @@ public class DirectoryChooserDialog
         m_isNewFolderEnabled = isNewFolderEnabled;
     }
 
-    public boolean getNewFolderEnabled()
-    {
-        return m_isNewFolderEnabled;
-    }
-
-    ///////////////////////////////////////////////////////////////////////
-    // chooseDirectory() - load directory chooser dialog for initial
-    // default sdcard directory
-    ///////////////////////////////////////////////////////////////////////
-
     public void chooseDirectory()
     {
         // Initial directory is sdcard directory
         chooseDirectory(m_sdcardDirectory);
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // chooseDirectory(String dir) - load directory chooser dialog for initial
-    // input 'dir' directory
-    ////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////
+    // chooseDirectory() - load directory chooser dialog for initial
+    // default sdcard directory
+    ///////////////////////////////////////////////////////////////////////
 
     public void chooseDirectory(String dir)
     {
@@ -168,6 +154,11 @@ public class DirectoryChooserDialog
         // Show directory chooser dialog
         dirsDialog.show();
     }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // chooseDirectory(String dir) - load directory chooser dialog for initial
+    // input 'dir' directory
+    ////////////////////////////////////////////////////////////////////////////////
 
     private boolean createSubDir(String newDir)
     {
@@ -275,5 +266,12 @@ public class DirectoryChooserDialog
                 return v;
             }
         };
+    }
+
+    //////////////////////////////////////////////////////
+    // Callback interface for selected directory
+    //////////////////////////////////////////////////////
+    public interface ChosenDirectoryListener {
+        void onChosenDir(String chosenDir);
     }
 }

@@ -36,21 +36,34 @@ public class UploadToDropboxActivity extends DropboxActivity {
     public final static String EXTRA_PATH = "AudioRecordActivity_Path";
     private static final String TAG = UploadToDropboxActivity.class.getName();
     private static final int PICKFILE_REQUEST_CODE = 1;
+    ProgressDialog progressBar;
+    ArrayList<File> f;
     private String mPath;
     private String appPath;
     private FilesAdapter mFilesAdapter;
     private FileMetadata mSelectedFile;
-
-    ProgressDialog progressBar;
     private int progressBarStatus = 0;
     private Handler progressBarHandler = new Handler();
     private int i = 0;
-    ArrayList<File> f;
 
     public static Intent getIntent(Context context, String path) {
         Intent filesIntent = new Intent(context, UploadToDropboxActivity.class);
         filesIntent.putExtra(UploadToDropboxActivity.EXTRA_PATH, path);
         return filesIntent;
+    }
+
+    public static void listf(String directoryName, ArrayList<File> files) {
+        File directory = new File(directoryName);
+
+        // get all the files from a directory
+        File[] fList = directory.listFiles();
+        for (File file : fList) {
+            if (file.isFile()) {
+                files.add(file);
+            } else if (file.isDirectory()) {
+                listf(file.getAbsolutePath(), files);
+            }
+        }
     }
 
     @Override
@@ -88,20 +101,6 @@ public class UploadToDropboxActivity extends DropboxActivity {
         listf(appPath, f);
         uploadFile(f);
         //showUploadProgress(f);
-    }
-
-    public static void listf(String directoryName, ArrayList<File> files) {
-        File directory = new File(directoryName);
-
-        // get all the files from a directory
-        File[] fList = directory.listFiles();
-        for (File file : fList) {
-            if (file.isFile()) {
-                files.add(file);
-            } else if (file.isDirectory()) {
-                listf(file.getAbsolutePath(), files);
-            }
-        }
     }
 
     public void showUploadProgress(final ArrayList<File> files) {

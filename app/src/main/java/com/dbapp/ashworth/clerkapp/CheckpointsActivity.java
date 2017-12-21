@@ -3,6 +3,7 @@ package com.dbapp.ashworth.clerkapp;
 import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,6 +11,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -63,7 +66,10 @@ public class CheckpointsActivity extends AppCompatActivity {
         final EditText postalAddress = (EditText) findViewById(R.id.postal_address);
         final EditText dateInput = (EditText) findViewById(R.id.date_input);
         final EditText clientName = (EditText) findViewById(R.id.client_name);
-        final EditText meterReadings = (EditText) findViewById(R.id.meter_readings);
+        final EditText gasReading = (EditText) findViewById(R.id.gas_reading);
+        final EditText electricityReading = (EditText) findViewById(R.id.electricity_reading);
+        final EditText heatReading = (EditText) findViewById(R.id.heat_reading);
+        final EditText waterReading = (EditText) findViewById(R.id.water_reading);
         final EditText keyDescription = (EditText) findViewById(R.id.key_description);
 
         final Calendar myCalendar = Calendar.getInstance();
@@ -95,7 +101,10 @@ public class CheckpointsActivity extends AppCompatActivity {
                 if (postalAddress.getText().toString().trim().isEmpty() ||
                         dateInput.getText().toString().trim().isEmpty() ||
                         clientName.getText().toString().trim().isEmpty() ||
-                        meterReadings.getText().toString().trim().isEmpty() ||
+                        gasReading.getText().toString().trim().isEmpty() ||
+                        electricityReading.getText().toString().trim().isEmpty() ||
+                        heatReading.getText().toString().trim().isEmpty() ||
+                        waterReading.getText().toString().trim().isEmpty() ||
                         keyDescription.getText().toString().trim().isEmpty()) {
                     Toast.makeText(getApplicationContext(), "Please fill all the fields to proceed.", Toast.LENGTH_SHORT).show();
                 } else {
@@ -113,8 +122,11 @@ public class CheckpointsActivity extends AppCompatActivity {
                         canvas.drawText("Postal address: " + postalAddress.getText().toString().trim(), 50, 50, paint);
                         canvas.drawText("Date: " + dateInput.getText().toString().trim(), 50, 100, paint);
                         canvas.drawText("Client Name: " + clientName.getText().toString().trim(), 50, 150, paint);
-                        canvas.drawText("Meter Readings: " + meterReadings.getText().toString().trim(), 50, 200, paint);
-                        canvas.drawText("Key Description: " + keyDescription.getText().toString().trim(), 50, 250, paint);
+                        canvas.drawText("Gas Readings: " + gasReading.getText().toString().trim(), 50, 200, paint);
+                        canvas.drawText("Electricity Readings: " + electricityReading.getText().toString().trim(), 250, 200, paint);
+                        canvas.drawText("Heat Readings: " + heatReading.getText().toString().trim(), 50, 300, paint);
+                        canvas.drawText("Water Readings: " + waterReading.getText().toString().trim(), 50, 350, paint);
+                        canvas.drawText("Key Description: " + keyDescription.getText().toString().trim(), 50, 400, paint);
 
                         document.finishPage(page);
                         document.writeTo(fOut);
@@ -128,7 +140,14 @@ public class CheckpointsActivity extends AppCompatActivity {
                     alert.setPositiveButton("Yes, upload now", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            startUploadingToDropbox();
+                            if (isNetworkAvailable()) {
+                                startUploadingToDropbox();
+                            } else {
+                                Toast.makeText(getApplicationContext(), "No internet connection. Try later.", Toast.LENGTH_SHORT).show();
+                                Intent i = new Intent(CheckpointsActivity.this, UserActivity.class);
+                                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(i);
+                            }
                         }
                     });
                     alert.setNegativeButton("No, upload later", new DialogInterface.OnClickListener() {
@@ -144,11 +163,35 @@ public class CheckpointsActivity extends AppCompatActivity {
             }
         });
 
-        ImageView readingsPhoto = (ImageView) findViewById(R.id.readings_photo);
-        readingsPhoto.setOnClickListener(new View.OnClickListener() {
+        ImageView gasReadingPhoto = (ImageView) findViewById(R.id.gas_reading_photo);
+        gasReadingPhoto.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                openCamera("meter_readings");
+                openCamera("gas_reading");
+            }
+        });
+
+        ImageView electricityReadingPhoto = (ImageView) findViewById(R.id.electricity_reading_photo);
+        electricityReadingPhoto.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openCamera("electricity_reading");
+            }
+        });
+
+        ImageView heatReadingPhoto = (ImageView) findViewById(R.id.heat_reading_photo);
+        heatReadingPhoto.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openCamera("heat_reading");
+            }
+        });
+
+        ImageView waterReadingPhoto = (ImageView) findViewById(R.id.water_reading_photo);
+        waterReadingPhoto.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openCamera("water_reading");
             }
         });
 
@@ -269,5 +312,12 @@ public class CheckpointsActivity extends AppCompatActivity {
         } else if (requestCode == 2) {
             newFile.delete();
         }
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting();
     }
 }

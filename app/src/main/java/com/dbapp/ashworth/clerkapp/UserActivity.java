@@ -2,10 +2,13 @@ package com.dbapp.ashworth.clerkapp;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,7 +24,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -77,11 +79,17 @@ public class UserActivity extends DropboxActivity {
             }
         });
 
+        File mydir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
+        if (mydir.listFiles() != null)
+            pendingUploadsButton.setText("Pending Uploads (" + mydir.listFiles().length + ")");
+
+        /*
         if (isStoragePermissionGranted()) {
             File mydir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
             mydir.mkdirs();
             pendingUploadsButton.setText("Pending Uploads (" + mydir.listFiles().length + ")");
         }
+        */
     }
 
     public void showPendingUploads() {
@@ -101,7 +109,11 @@ public class UserActivity extends DropboxActivity {
                             new DirectoryChooserDialog.ChosenDirectoryListener() {
                                 @Override
                                 public void onChosenDir(String chosenDir) {
-                                    startUploadingToDropbox();
+                                    if (isNetworkAvailable()) {
+                                        startUploadingToDropbox();
+                                    } else {
+                                        Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_SHORT).show();
+                                    }
                                 }
                             });
             // Load directory chooser dialog for initial 'm_chosenDir' directory.
@@ -266,11 +278,9 @@ public class UserActivity extends DropboxActivity {
         super.onResume();
 
         Button pendingUploadsButton = (Button) findViewById(R.id.pending_uploads_button);
-        if (isStoragePermissionGranted()) {
-            File mydir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
-            mydir.mkdirs();
+        File mydir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
+        if (mydir.listFiles() != null)
             pendingUploadsButton.setText("Pending Uploads (" + mydir.listFiles().length + ")");
-        }
 
         if (hasToken()) {
             findViewById(R.id.login_button).setVisibility(View.GONE);
@@ -312,6 +322,13 @@ public class UserActivity extends DropboxActivity {
                 Log.e(getClass().getName(), "Failed to get account details.", e);
             }
         }).execute();
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting();
     }
 
 }

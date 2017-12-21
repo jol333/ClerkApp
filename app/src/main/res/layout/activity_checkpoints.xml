@@ -47,7 +47,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:ems="10"
-                        android:hint="Postal Address"
+                        android:hint="Property Address"
                         android:inputType="textPostalAddress" />
                 </android.support.design.widget.TextInputLayout>
 
@@ -90,31 +90,31 @@
                     <android.support.design.widget.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginRight="40dp"
                         android:layout_alignParentStart="true"
-                        android:id="@+id/m_read"
+                        android:layout_marginRight="40dp"
                         android:layout_marginTop="@dimen/activity_vertical_margin">
 
                         <EditText
-                            android:id="@+id/meter_readings"
+                            android:id="@+id/gas_reading"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:ems="10"
-                            android:hint="Meter Readings"
-                            android:inputType="number" />
+                            android:hint="Gas Reading"
+                            android:inputType="text" />
 
                     </android.support.design.widget.TextInputLayout>
 
                     <ImageView
+                        android:id="@+id/gas_reading_photo"
                         android:layout_width="36dp"
                         android:layout_height="36dp"
-                        android:id="@+id/readings_photo"
-                        android:paddingBottom="5dp"
-                        android:layout_alignParentEnd="true"
                         android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:paddingBottom="5dp"
                         android:src="@drawable/ic_photo_camera_black_36dp"
                         android:tint="@color/dbx_primary" />
                 </RelativeLayout>
+
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -123,8 +123,107 @@
                     <android.support.design.widget.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginRight="40dp"
                         android:layout_alignParentStart="true"
+                        android:layout_marginRight="40dp"
+                        android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                        <EditText
+                            android:id="@+id/electricity_reading"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ems="10"
+                            android:hint="Electricity Reading"
+                            android:inputType="text" />
+
+                    </android.support.design.widget.TextInputLayout>
+
+                    <ImageView
+                        android:id="@+id/electricity_reading_photo"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:paddingBottom="5dp"
+                        android:src="@drawable/ic_photo_camera_black_36dp"
+                        android:tint="@color/dbx_primary" />
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <android.support.design.widget.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_marginRight="40dp"
+                        android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                        <EditText
+                            android:id="@+id/heat_reading"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ems="10"
+                            android:hint="Heat Reading"
+                            android:inputType="text" />
+
+                    </android.support.design.widget.TextInputLayout>
+
+                    <ImageView
+                        android:id="@+id/heat_reading_photo"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:paddingBottom="5dp"
+                        android:src="@drawable/ic_photo_camera_black_36dp"
+                        android:tint="@color/dbx_primary" />
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <android.support.design.widget.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_marginRight="40dp"
+                        android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                        <EditText
+                            android:id="@+id/water_reading"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ems="10"
+                            android:hint="Water Reading"
+                            android:inputType="text" />
+
+                    </android.support.design.widget.TextInputLayout>
+
+                    <ImageView
+                        android:id="@+id/water_reading_photo"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:paddingBottom="5dp"
+                        android:src="@drawable/ic_photo_camera_black_36dp"
+                        android:tint="@color/dbx_primary" />
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <android.support.design.widget.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_marginRight="40dp"
                         android:layout_marginTop="@dimen/activity_vertical_margin">
 
                         <EditText
@@ -138,12 +237,12 @@
                     </android.support.design.widget.TextInputLayout>
 
                     <ImageView
+                        android:id="@+id/key_photo"
                         android:layout_width="36dp"
                         android:layout_height="36dp"
-                        android:id="@+id/key_photo"
-                        android:paddingBottom="5dp"
-                        android:layout_alignParentEnd="true"
                         android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:paddingBottom="5dp"
                         android:src="@drawable/ic_photo_camera_black_36dp"
                         android:tint="@color/dbx_primary" />
                 </RelativeLayout>
