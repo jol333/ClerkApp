@@ -101,6 +101,7 @@ public class UserActivity extends DropboxActivity {
             mydir.mkdirs();
             if (mydir.listFiles().length == 0) {
                 Toast.makeText(getApplicationContext(), "No pending uploads found.", Toast.LENGTH_LONG).show();
+                ((Button) findViewById(R.id.pending_uploads_button)).setText("Pending Uploads (0)");
                 return;
             }
             // Create DirectoryChooserDialog and register a callback
@@ -197,7 +198,7 @@ public class UserActivity extends DropboxActivity {
                 super.onPostExecute(aVoid);
                 progressDialog.dismiss();
 
-                if(!clerkNameCorrect) {
+                if (!clerkNameCorrect) {
                     runOnUiThread(new Runnable() {
                         public void run() {
                             showFolderNameDialog();
@@ -210,7 +211,7 @@ public class UserActivity extends DropboxActivity {
 
     private void showFolderNameDialog() {
         AlertDialog.Builder alert = new AlertDialog.Builder(UserActivity.this);
-        alert.setMessage("No folder has been shared by Manager with name: "+clerkName+". Please contact your manager and enter exact name of the shared folder.");
+        alert.setMessage("No folder has been shared by Manager with name: " + clerkName + ". Please contact your manager and enter exact name of the shared folder.");
         //alert.setMessage(" ");
 
         // Set an EditText view to get user input

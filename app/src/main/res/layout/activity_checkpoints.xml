@@ -113,7 +113,25 @@
                         android:paddingBottom="5dp"
                         android:src="@drawable/ic_photo_camera_black_36dp"
                         android:tint="@color/dbx_primary" />
+
                 </RelativeLayout>
+
+                <android.support.design.widget.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginRight="40dp"
+                    android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                    <EditText
+                        android:id="@+id/gas_location"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:hint="Gas Meter Location"
+                        android:inputType="text" />
+
+                </android.support.design.widget.TextInputLayout>
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -148,6 +166,23 @@
                         android:tint="@color/dbx_primary" />
                 </RelativeLayout>
 
+                <android.support.design.widget.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginRight="40dp"
+                    android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                    <EditText
+                        android:id="@+id/electricity_location"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:hint="Electricity Meter Location"
+                        android:inputType="text" />
+
+                </android.support.design.widget.TextInputLayout>
+
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -181,6 +216,23 @@
                         android:tint="@color/dbx_primary" />
                 </RelativeLayout>
 
+                <android.support.design.widget.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginRight="40dp"
+                    android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                    <EditText
+                        android:id="@+id/heat_location"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:hint="Heat Meter Location"
+                        android:inputType="text" />
+
+                </android.support.design.widget.TextInputLayout>
+
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -213,6 +265,23 @@
                         android:src="@drawable/ic_photo_camera_black_36dp"
                         android:tint="@color/dbx_primary" />
                 </RelativeLayout>
+
+                <android.support.design.widget.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginRight="40dp"
+                    android:layout_marginTop="@dimen/activity_vertical_margin">
+
+                    <EditText
+                        android:id="@+id/water_location"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:hint="Water Meter Location"
+                        android:inputType="text" />
+
+                </android.support.design.widget.TextInputLayout>
 
                 <RelativeLayout
                     android:layout_width="match_parent"

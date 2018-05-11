@@ -7,9 +7,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -18,12 +18,29 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.dropbox.core.DbxException;
+import com.dropbox.core.NetworkIOException;
+import com.dropbox.core.RetryException;
+import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.files.CommitInfo;
 import com.dropbox.core.v2.files.FileMetadata;
 import com.dropbox.core.v2.files.FolderMetadata;
 import com.dropbox.core.v2.files.ListFolderResult;
+import com.dropbox.core.v2.files.UploadErrorException;
+import com.dropbox.core.v2.files.UploadSessionCursor;
+import com.dropbox.core.v2.files.UploadSessionFinishErrorException;
+import com.dropbox.core.v2.files.UploadSessionLookupErrorException;
+import com.dropbox.core.v2.files.WriteMode;
+
+import org.zeroturnaround.zip.NameMapper;
+import org.zeroturnaround.zip.ZipUtil;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import static com.dbapp.ashworth.clerkapp.DropboxClientFactory.getClient;
 
@@ -35,15 +52,14 @@ import static com.dbapp.ashworth.clerkapp.DropboxClientFactory.getClient;
 public class UploadToDropboxActivity extends DropboxActivity {
     public final static String EXTRA_PATH = "AudioRecordActivity_Path";
     private static final String TAG = UploadToDropboxActivity.class.getName();
-    private static final int PICKFILE_REQUEST_CODE = 1;
-    ProgressDialog progressBar;
-    ArrayList<File> f;
+    private static final long CHUNKED_UPLOAD_CHUNK_SIZE = 4L << 20; // 8MiB
+    private static final int CHUNKED_UPLOAD_MAX_ATTEMPTS = 5;
+    public static ProgressDialog progressBar;
+    String progressMsg;
     private String mPath;
     private String appPath;
     private FilesAdapter mFilesAdapter;
     private FileMetadata mSelectedFile;
-    private int progressBarStatus = 0;
-    private Handler progressBarHandler = new Handler();
     private int i = 0;
 
     public static Intent getIntent(Context context, String path) {
@@ -52,18 +68,14 @@ public class UploadToDropboxActivity extends DropboxActivity {
         return filesIntent;
     }
 
-    public static void listf(String directoryName, ArrayList<File> files) {
-        File directory = new File(directoryName);
+    public static void deleteRecursive(File fileOrDirectory) {
 
-        // get all the files from a directory
-        File[] fList = directory.listFiles();
-        for (File file : fList) {
-            if (file.isFile()) {
-                files.add(file);
-            } else if (file.isDirectory()) {
-                listf(file.getAbsolutePath(), files);
+        if (fileOrDirectory.isDirectory()) {
+            for (File child : fileOrDirectory.listFiles()) {
+                deleteRecursive(child);
             }
         }
+        fileOrDirectory.delete();
     }
 
     @Override
@@ -79,7 +91,6 @@ public class UploadToDropboxActivity extends DropboxActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle("Uploading files");
 
-        //RecyclerView recyclerView = (RecyclerView) findViewById(R.id.files_list);
         mFilesAdapter = new FilesAdapter(PicassoClient.getPicasso(), new FilesAdapter.Callback() {
             @Override
             public void onFolderClicked(FolderMetadata folder) {
@@ -92,111 +103,89 @@ public class UploadToDropboxActivity extends DropboxActivity {
                 performWithPermissions(FileAction.DOWNLOAD);
             }
         });
-        //recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        //recyclerView.setAdapter(mFilesAdapter);
 
         mSelectedFile = null;
-        f = new ArrayList<>();
         appPath = Environment.getExternalStorageDirectory() + "/ClerkApp";
-        listf(appPath, f);
-        uploadFile(f);
-        //showUploadProgress(f);
+
+        showUploadProgress();
     }
 
-    public void showUploadProgress(final ArrayList<File> files) {
+    public void showUploadProgress() {
         // creating progress bar dialog
         progressBar = new ProgressDialog(this);
-        progressBar.setCancelable(false);
-        progressBar.setMessage("Uploading files...");
-        progressBar.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        progressBar.setProgress(0);
-        final int noOfFiles = files.size();
-        progressBar.setMax(noOfFiles);
-        progressBar.show();
-        //reset progress bar and file size status
-        progressBarStatus = 0;
-        i = 0;
 
-        new Thread(new Runnable() {
-            public void run() {
-                while (progressBarStatus < noOfFiles) {
-                    // performing operation
-                    progressBarStatus = doOperation(files);
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    // Updating the progress bar
-                    progressBarHandler.post(new Runnable() {
-                        public void run() {
-                            progressBar.setProgress(progressBarStatus);
-                        }
-                    });
-                }
-                // performing operation if file is downloaded,
-                if (progressBarStatus >= noOfFiles) {
-                    // sleeping for 1 second after operation completed
-                    try {
-                        Thread.sleep(1000);
-                        File dir = new File(appPath);
-                        deleteRecursive(dir);
-                        dir.mkdirs();
-                        //Toast.makeText(getApplicationContext(), "Upload finished.", Toast.LENGTH_LONG).show();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    // close the progress bar dialog
-                    progressBar.dismiss();
-                    Intent i = new Intent(UploadToDropboxActivity.this, UserActivity.class);
-                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(i);
-                }
+        new AsyncTask<Void, Void, Void>() {
+
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+
+                progressBar.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+                progressBar.setCancelable(false);
+                progressBar.setMessage("Zipping files...");
+                progressBar.show();
             }
-        }).start();
-    }
 
-    public void deleteRecursive(File fileOrDirectory) {
-
-        if (fileOrDirectory.isDirectory()) {
-            for (File child : fileOrDirectory.listFiles()) {
-                deleteRecursive(child);
+            @Override
+            protected Void doInBackground(Void... voids) {
+                final String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HHmmss").format(new Date());
+                ZipUtil.pack(new File(appPath), new File(Environment.getExternalStorageDirectory() + "/" + timeStamp + ".zip"), new NameMapper() {
+                    @Override
+                    public String map(String name) {
+                        return timeStamp + "/" + name;
+                    }
+                });
+                // doOperation(Environment.getExternalStorageDirectory() +"/"+timeStamp+".zip");
+                File localFile = new File(Environment.getExternalStorageDirectory() + "/" + timeStamp + ".zip");
+                if (localFile.length() <= (2 * CHUNKED_UPLOAD_CHUNK_SIZE)) {
+                    uploadFile(DropboxClientFactory.getClient(), localFile, mPath);
+                } else {
+                    chunkedUploadFile(DropboxClientFactory.getClient(), localFile, mPath);
+                }
+                return null;
             }
-        }
-        fileOrDirectory.delete();
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+
+            }
+
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null);
     }
 
-    public int doOperation(final ArrayList<File> files) {
-        if (i < files.size()) {
-            String fileUri = Uri.fromFile(files.get(i)).toString();
-            String s = (files.get(i).getAbsolutePath());
-            s = s.replace(appPath, "");
-            s = s.substring(0, s.lastIndexOf("/"));
-            Log.e("fileUri", fileUri);
-            Log.e("path", mPath + s);
+    public int doOperation(final String zipPath) {
 
-            new UploadFileTask(this, getClient(), new UploadFileTask.Callback() {
-                @Override
-                public void onUploadComplete(FileMetadata result) {
-                    i++;
-                }
+        String fileUri = Uri.fromFile(new File(zipPath)).toString();
 
-                @Override
-                public void onError(Exception e) {
-                    progressBar.dismiss();
-                    Log.e(TAG, "Failed to upload file.", e);
-                    Toast.makeText(UploadToDropboxActivity.this,
-                            "An error has occurred. Please try again.",
-                            Toast.LENGTH_SHORT)
-                            .show();
-                    finish();
-                }
-            }).execute(fileUri, mPath + s);
-            return i;
-        }
-        return 1000;
+        new UploadFileTask(this, getClient(), new UploadFileTask.Callback() {
+            @Override
+            public void onUploadComplete(FileMetadata result) {
+                new File(zipPath).delete();
+                File dir = new File(appPath);
+                deleteRecursive(dir);
+                dir.mkdirs();
+                // close the progress bar dialog
+                progressBar.dismiss();
+                Intent i = new Intent(UploadToDropboxActivity.this, UserActivity.class);
+                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(i);
+                Toast.makeText(getApplicationContext(), "Upload complete!", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onError(Exception e) {
+                progressBar.dismiss();
+                Log.e(TAG, "Failed to upload file.", e);
+                Toast.makeText(UploadToDropboxActivity.this,
+                        "An error has occurred. Please try again.",
+                        Toast.LENGTH_SHORT)
+                        .show();
+                finish();
+            }
+        }).execute(fileUri, mPath);
+        return 1;
     }
-
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
@@ -239,6 +228,19 @@ public class UploadToDropboxActivity extends DropboxActivity {
         }
     }
 
+    private void dismissUpload(final String msg) {
+        progressBar.dismiss();
+        Intent i = new Intent(UploadToDropboxActivity.this, UserActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i);
+        runOnUiThread(new Runnable() {
+            public void run() {
+
+                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void performAction(FileAction action) {
         switch (action) {
             case UPLOAD:
@@ -273,74 +275,6 @@ public class UploadToDropboxActivity extends DropboxActivity {
                         .show();
             }
         }).execute(mPath);
-    }
-
-    private void uploadFile(final ArrayList<File> files) {
-        String fileUri = Uri.fromFile(files.get(files.size() - 1)).toString();
-        String s = (files.get(files.size() - 1)).getAbsolutePath();
-        s = s.replace(appPath, "");
-        s = s.substring(0, s.lastIndexOf("/"));
-        Log.e("fileUri", fileUri);
-        Log.e("path", mPath + s);
-
-        final ProgressDialog dialog = new ProgressDialog(this);
-        dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        dialog.setCancelable(false);
-        dialog.setTitle("Uploading...");
-        dialog.setMessage(files.size()+" file(s) remaining...");
-        dialog.show();
-
-        new UploadFileTask(this, getClient(), new UploadFileTask.Callback() {
-            @Override
-            public void onUploadComplete(FileMetadata result) {
-                dialog.dismiss();
-
-//                String message = result.getName() + " size " + result.getSize() + " modified " +
-//                        DateFormat.getDateTimeInstance().format(result.getClientModified());
-//                Toast.makeText(UploadToDropboxActivity.this, message, Toast.LENGTH_LONG)
-//                        .show();
-
-                if (files.size() > 1) {
-                    files.remove(files.size() - 1);
-                    uploadFile(files);
-                } else {
-                    File dir = new File(appPath);
-                    deleteRecursive(dir);
-                    dir.mkdirs();
-                    Toast.makeText(getApplicationContext(), "Upload finished.", Toast.LENGTH_LONG).show();
-                    Intent i = new Intent(UploadToDropboxActivity.this, UserActivity.class);
-                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(i);
-                }
-                // Reload the folder
-                //loadData();
-            }
-
-            public void deleteRecursive(File fileOrDirectory) {
-
-                if (fileOrDirectory.isDirectory()) {
-                    for (File child : fileOrDirectory.listFiles()) {
-                        deleteRecursive(child);
-                    }
-                }
-
-                fileOrDirectory.delete();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Toast.makeText(UploadToDropboxActivity.this,
-                        "An error has occurred",
-                        Toast.LENGTH_SHORT)
-                        .show();
-                dialog.dismiss();
-                Intent i = new Intent(UploadToDropboxActivity.this, UserActivity.class);
-                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(i);
-
-                Log.e(TAG, "Failed to upload file.", e);
-            }
-        }).execute(fileUri, mPath + s);
     }
 
     private void performWithPermissions(final FileAction action) {
@@ -391,6 +325,175 @@ public class UploadToDropboxActivity extends DropboxActivity {
                 action.getPermissions(),
                 action.getCode()
         );
+    }
+
+    // =====================================================================================
+    // =====================================================================================
+    // =====================================================================================
+
+    private void uploadFile(DbxClientV2 dbxClient, File localFile, String dropboxPath) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                progressBar.setMessage("Uploading files...");
+            }
+        });
+
+        try (InputStream in = new FileInputStream(localFile)) {
+            Log.e("Test", localFile.getAbsolutePath() + " " + dropboxPath);
+            FileMetadata metadata = dbxClient.files().uploadBuilder(dropboxPath + "/" + localFile.getName())
+                    .withMode(WriteMode.OVERWRITE)
+                    .uploadAndFinish(in);
+
+            Log.e("Metadata", metadata.toStringMultiline());
+            File dir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
+            deleteRecursive(dir);
+            dismissUpload("Upload successful!");
+
+        } catch (UploadErrorException ex) {
+            Log.e("Dropbox Upload Error", ex.getMessage());
+            dismissUpload("Upload error!");
+        } catch (DbxException ex) {
+            Log.e("Dropbox Upload Error", ex.getMessage());
+            dismissUpload("Upload error!");
+        } catch (IOException ex) {
+            Log.e("Error reading from file", "\"" + localFile + "\": " + ex.getMessage());
+            dismissUpload("Cannot access audit task files!");
+        }
+    }
+
+    // =====================================================================================
+
+    private void chunkedUploadFile(DbxClientV2 dbxClient, File localFile, String dropboxPath) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                progressBar.setMessage("Uploading files...");
+            }
+        });
+        long size = localFile.length();
+        long uploaded = 0L;
+        DbxException thrown = null;
+        String sessionId = null;
+        for (i = 0; i < CHUNKED_UPLOAD_MAX_ATTEMPTS; ++i) {
+            if (i > 0) {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        progressBar.setMessage("Retrying upload (" + (i + 1) + " / " + CHUNKED_UPLOAD_MAX_ATTEMPTS + " attempts)");
+                    }
+                });
+            }
+
+            try (InputStream in = new FileInputStream(localFile)) {
+                // if this is a retry, make sure seek to the correct offset
+                in.skip(uploaded);
+
+                // (1) Start
+                if (sessionId == null) {
+                    sessionId = dbxClient.files().uploadSessionStart()
+                            .uploadAndFinish(in, CHUNKED_UPLOAD_CHUNK_SIZE)
+                            .getSessionId();
+                    uploaded += CHUNKED_UPLOAD_CHUNK_SIZE;
+                    printProgress(uploaded, size);
+                }
+
+                UploadSessionCursor cursor = new UploadSessionCursor(sessionId, uploaded);
+
+                // (2) Append
+                while ((size - uploaded) > CHUNKED_UPLOAD_CHUNK_SIZE) {
+                    dbxClient.files().uploadSessionAppendV2(cursor)
+                            .uploadAndFinish(in, CHUNKED_UPLOAD_CHUNK_SIZE);
+                    uploaded += CHUNKED_UPLOAD_CHUNK_SIZE;
+                    printProgress(uploaded, size);
+                    cursor = new UploadSessionCursor(sessionId, uploaded);
+                }
+
+                // (3) Finish
+                long remaining = size - uploaded;
+                CommitInfo commitInfo = CommitInfo.newBuilder(dropboxPath + "/" + localFile.getName())
+                        .withMode(WriteMode.OVERWRITE)
+                        .withClientModified(new Date(localFile.lastModified()))
+                        .build();
+                FileMetadata metadata = dbxClient.files().uploadSessionFinish(cursor, commitInfo)
+                        .uploadAndFinish(in, remaining);
+
+                Log.e("Metadata", metadata.toStringMultiline());
+                File dir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp");
+                deleteRecursive(dir);
+                dismissUpload("Upload successful!");
+                return;
+            } catch (RetryException ex) {
+                thrown = ex;
+                // RetryExceptions are never automatically retried by the client for uploads. Must
+                // catch this exception even if DbxRequestConfig.getMaxRetries() > 0.
+                sleepQuietly(ex.getBackoffMillis());
+                continue;
+            } catch (NetworkIOException ex) {
+                thrown = ex;
+                // network issue with Dropbox (maybe a timeout?) try again
+                continue;
+            } catch (UploadSessionLookupErrorException ex) {
+                if (ex.errorValue.isIncorrectOffset()) {
+                    thrown = ex;
+                    // server offset into the stream doesn't match our offset (uploaded). Seek to
+                    // the expected offset according to the server and try again.
+                    uploaded = ex.errorValue
+                            .getIncorrectOffsetValue()
+                            .getCorrectOffset();
+                    continue;
+                } else {
+                    // Some other error occurred, give up.
+                    Log.e("Dropbox Upload Error", ex.getMessage());
+                    dismissUpload("Upload error!");
+                    return;
+                }
+            } catch (UploadSessionFinishErrorException ex) {
+                if (ex.errorValue.isLookupFailed() && ex.errorValue.getLookupFailedValue().isIncorrectOffset()) {
+                    thrown = ex;
+                    // server offset into the stream doesn't match our offset (uploaded). Seek to
+                    // the expected offset according to the server and try again.
+                    uploaded = ex.errorValue
+                            .getLookupFailedValue()
+                            .getIncorrectOffsetValue()
+                            .getCorrectOffset();
+                    continue;
+                } else {
+                    // some other error occurred, give up.
+                    Log.e("Dropbox Upload Error", ex.getMessage());
+                    dismissUpload("Upload error!");
+                    return;
+                }
+            } catch (DbxException ex) {
+                Log.e("Dropbox Upload Error", ex.getMessage());
+                dismissUpload("Upload error!");
+                return;
+            } catch (IOException ex) {
+                Log.e("Error reading from file", "\"" + localFile + "\": " + ex.getMessage());
+                dismissUpload("Cannot access audit task files!");
+                return;
+            }
+        }
+
+        // if we made it here, then we must have run out of attempts
+        Log.e("Max out upload attempts", thrown.getMessage());
+        dismissUpload("Maxed out upload attempts. Please check your internet connection");
+    }
+
+    private void printProgress(long uploaded, long size) {
+        progressMsg = String.format("Uploaded %12d / %12d bytes \n(%5.2f%%)", uploaded, size, 100 * (uploaded / (double) size));
+        runOnUiThread(new Runnable() {
+            public void run() {
+                progressBar.setMessage(progressMsg);
+            }
+        });
+    }
+
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ex) {
+            // just exit
+            Log.e("Sleep Interrupt Error", "Error uploading to Dropbox: interrupted during backoff.");
+            dismissUpload("Upload error!");
+        }
     }
 
     private enum FileAction {

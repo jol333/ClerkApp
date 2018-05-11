@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Clerk\'s App</string>
+    <string name="app_name">Ashworth Group</string>
     <!-- Change this to your app key -->
     <string name="app_key">z6i1bl31h3yvj1y</string>
     <string name="title_activity_files">Files</string>

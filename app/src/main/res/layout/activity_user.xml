@@ -51,13 +51,13 @@
             android:layout_alignParentRight="true"
             android:layout_alignParentTop="true"
             android:layout_below="@id/connection_status" />
-<!--
-        <TextView
-            android:id="@+id/type_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/name_text" />
--->
+        <!--
+                <TextView
+                    android:id="@+id/type_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/name_text" />
+        -->
 
         <Button
             android:id="@+id/files_button"

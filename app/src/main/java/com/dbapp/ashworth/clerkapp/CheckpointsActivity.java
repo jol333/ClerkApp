@@ -70,6 +70,10 @@ public class CheckpointsActivity extends AppCompatActivity {
         final EditText electricityReading = (EditText) findViewById(R.id.electricity_reading);
         final EditText heatReading = (EditText) findViewById(R.id.heat_reading);
         final EditText waterReading = (EditText) findViewById(R.id.water_reading);
+        final EditText gasLocation = (EditText) findViewById(R.id.gas_location);
+        final EditText electricityLocation = (EditText) findViewById(R.id.electricity_location);
+        final EditText heatLocation = (EditText) findViewById(R.id.heat_location);
+        final EditText waterLocation = (EditText) findViewById(R.id.water_location);
         final EditText keyDescription = (EditText) findViewById(R.id.key_description);
 
         final Calendar myCalendar = Calendar.getInstance();
@@ -123,10 +127,14 @@ public class CheckpointsActivity extends AppCompatActivity {
                         canvas.drawText("Date: " + dateInput.getText().toString().trim(), 50, 100, paint);
                         canvas.drawText("Client Name: " + clientName.getText().toString().trim(), 50, 150, paint);
                         canvas.drawText("Gas Readings: " + gasReading.getText().toString().trim(), 50, 200, paint);
-                        canvas.drawText("Electricity Readings: " + electricityReading.getText().toString().trim(), 250, 200, paint);
-                        canvas.drawText("Heat Readings: " + heatReading.getText().toString().trim(), 50, 300, paint);
-                        canvas.drawText("Water Readings: " + waterReading.getText().toString().trim(), 50, 350, paint);
-                        canvas.drawText("Key Description: " + keyDescription.getText().toString().trim(), 50, 400, paint);
+                        canvas.drawText("Gas Meter Location: " + gasLocation.getText().toString().trim(), 50, 250, paint);
+                        canvas.drawText("Electricity Readings: " + electricityReading.getText().toString().trim(), 50, 300, paint);
+                        canvas.drawText("Electricity Meter Location: " + electricityLocation.getText().toString().trim(), 50, 350, paint);
+                        canvas.drawText("Heat Readings: " + heatReading.getText().toString().trim(), 50, 400, paint);
+                        canvas.drawText("Heat Meter Location: " + heatLocation.getText().toString().trim(), 50, 450, paint);
+                        canvas.drawText("Water Readings: " + waterReading.getText().toString().trim(), 50, 500, paint);
+                        canvas.drawText("Water Meter Location: " + waterLocation.getText().toString().trim(), 50, 550, paint);
+                        canvas.drawText("Key Description: " + keyDescription.getText().toString().trim(), 50, 600, paint);
 
                         document.finishPage(page);
                         document.writeTo(fOut);
@@ -273,14 +281,14 @@ public class CheckpointsActivity extends AppCompatActivity {
                         Log.e("Error: ", "No folder with name: " + clerkName);
                         //progressDialog.dismiss();
 
-                            runOnUiThread(new Runnable() {
-                                public void run() {
-                                    Toast.makeText(getApplicationContext(),"No folder has been shared by Manager with name '" + clerkName + "'", Toast.LENGTH_LONG).show();
-                                    Intent i = new Intent(CheckpointsActivity.this, UserActivity.class);
-                                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                    startActivity(i);
-                                }
-                            });
+                        runOnUiThread(new Runnable() {
+                            public void run() {
+                                Toast.makeText(getApplicationContext(), "No folder has been shared by Manager with name '" + clerkName + "'", Toast.LENGTH_LONG).show();
+                                Intent i = new Intent(CheckpointsActivity.this, UserActivity.class);
+                                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(i);
+                            }
+                        });
 
                     }
                 } catch (Exception e) {

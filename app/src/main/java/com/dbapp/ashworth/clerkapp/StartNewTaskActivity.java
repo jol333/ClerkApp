@@ -4,7 +4,10 @@ import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
@@ -22,14 +25,21 @@ import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.github.lassana.recorder.AudioRecorder;
-import com.github.lassana.recorder.AudioRecorderBuilder;
-
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 
 public class StartNewTaskActivity extends AppCompatActivity {
+    private static final int RECORDER_BPP = 16;
+    private static final String AUDIO_RECORDER_TEMP_FILE = "record_temp.raw";
+    private static final int RECORDER_SAMPLERATE = 8000;
+    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_STEREO;
+    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private final int MY_PERMISSIONS_RECORD_AUDIO = 1;
-    File mAudioFile;
+    private File mAudioFile;
     private MediaPlayer mPlayer = null;
     private EditText taskName;
     private Chronometer myChronometer;
@@ -40,7 +50,21 @@ public class StartNewTaskActivity extends AppCompatActivity {
     private Button playButton;
     private Button pauseButton;
     private Button resumeButton;
-    private AudioRecorder recorder;
+    private long mLastStopTime = 0;
+    private AudioRecord recorder = null;
+    private int bufferSize = 0;
+    private Thread recordingThread = null;
+    private boolean isRecording = false;
+
+    public static void deleteRecursive(File fileOrDirectory) {
+
+        if (fileOrDirectory.isDirectory()) {
+            for (File child : fileOrDirectory.listFiles()) {
+                deleteRecursive(child);
+            }
+        }
+        fileOrDirectory.delete();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +76,8 @@ public class StartNewTaskActivity extends AppCompatActivity {
         getSupportActionBar().setTitle("Record audio");
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
+
+        bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE, RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
 
         nextButton = (Button) findViewById(R.id.next_button_1);
         recordButton = (Button) findViewById(R.id.record_button);
@@ -81,54 +107,29 @@ public class StartNewTaskActivity extends AppCompatActivity {
         });
 
         pauseButton.setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View view) {
-                recorder.pause(new AudioRecorder.OnPauseListener() {
-                    @Override
-                    public void onPaused(String activeRecordFileName) {
-                        stopButton.setVisibility(View.GONE);
-                        pauseButton.setVisibility(View.GONE);
-                        resumeButton.setVisibility(View.VISIBLE);
-                        myChronometer.stop();
-                    }
-
-                    @Override
-                    public void onException(Exception e) {
-                        // error
-                    }
-                });
-
+                stopButton.setVisibility(View.GONE);
+                pauseButton.setVisibility(View.GONE);
+                stopRecording(false);
+                resumeButton.setVisibility(View.VISIBLE);
+                myChronometer.stop();
+                mLastStopTime = SystemClock.elapsedRealtime();
             }
         });
 
         resumeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 resumeButton.setVisibility(View.GONE);
+                startRecording(true);
+                myChronometer.setBase(myChronometer.getBase() + SystemClock.elapsedRealtime() - mLastStopTime);
+                myChronometer.start();
                 pauseButton.setVisibility(View.VISIBLE);
                 stopButton.setVisibility(View.VISIBLE);
 
-                String f = Environment.getExternalStorageDirectory() + "/ClerkApp/" +
-                        taskName.getText() + "/" + taskName.getText() + ".aac";
-                mAudioFile = new File(f);
-
-                recorder = AudioRecorderBuilder.with(getApplicationContext())
-                        .fileName(f)
-                        .config(AudioRecorder.MediaRecorderConfig.DEFAULT)
-                        .loggable()
-                        .build();
-
-                recorder.start(new AudioRecorder.OnStartListener() {
-                    @Override
-                    public void onStarted() {
-                        myChronometer.start();
-                    }
-
-                    @Override
-                    public void onException(Exception e) {
-                        // error
-                    }
-                });
             }
         });
 
@@ -136,34 +137,30 @@ public class StartNewTaskActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                //stopRecording();
-                recorder.pause(new AudioRecorder.OnPauseListener() {
-                    @Override
-                    public void onPaused(String activeRecordFileName) {
-                        stopButton.setVisibility(View.GONE);
-                        pauseButton.setVisibility(View.GONE);
-                        retryButton.setVisibility(View.VISIBLE);
-                        playButton.setVisibility(View.VISIBLE);
+                AlertDialog.Builder builder = new AlertDialog.Builder(StartNewTaskActivity.this);
+                builder
+                        .setTitle("Stop Recording?")
+                        .setMessage("Do you really want to stop recording the audio? If you wish to resume later, please tap pause instead.")
+                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
 
-                        nextButton.setClickable(true);
-                        nextButton.setEnabled(true);
+                                stopButton.setVisibility(View.GONE);
+                                pauseButton.setVisibility(View.GONE);
+                                Toast.makeText(getApplicationContext(), "Please wait while we are saving the recorded file...", Toast.LENGTH_LONG).show();
+                                stopRecording(true);
+                                retryButton.setVisibility(View.VISIBLE);
+                                playButton.setVisibility(View.VISIBLE);
 
-                        //mRecorder.stop();
-                        myChronometer.stop();
-                        //mRecorder.reset();
-                        //mRecorder.release();
-                        //mRecorder = null;
-                        Toast.makeText(getApplicationContext(), "Recording stopped.", Toast.LENGTH_SHORT).show();
-                    }
+                                nextButton.setClickable(true);
+                                nextButton.setEnabled(true);
 
-                    @Override
-                    public void onException(Exception e) {
-                        // error
-                    }
-                });
-
-                //taskName.setText(mPath+"/"+taskName.getText()+"/"+mAudioFile.getName());
-                //taskName.setText(mAudioFile.getAbsolutePath());
+                                myChronometer.stop();
+                                mLastStopTime = 0;
+                                Toast.makeText(getApplicationContext(), "Recording saved successfully!", Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .setNegativeButton("No", null)                        //Do nothing on no
+                        .show();
             }
         });
 
@@ -183,6 +180,7 @@ public class StartNewTaskActivity extends AppCompatActivity {
                                     playButton.setCompoundDrawablesWithIntrinsicBounds(null, ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_play_arrow_black_24dp), null, null);
                                     playButton.setText("Play");
                                 }
+                                mAudioFile.delete();
                                 retryButton.setVisibility(View.GONE);
                                 playButton.setVisibility(View.GONE);
                                 recordButton.setVisibility(View.VISIBLE);
@@ -273,6 +271,222 @@ public class StartNewTaskActivity extends AppCompatActivity {
         });
     }
 
+    private String getFilename() {
+        String f = Environment.getExternalStorageDirectory() + "/ClerkApp/" +
+                taskName.getText() + "/" + taskName.getText() + ".wav";
+        mAudioFile = new File(f);
+        try {
+            mAudioFile.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return (mAudioFile.getAbsolutePath());
+    }
+
+    private String getTempFilename() {
+        String filepath = Environment.getExternalStorageDirectory().getPath();
+        File file = new File(filepath + "/" + AUDIO_RECORDER_TEMP_FILE);
+        try {
+            file.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return (file.getAbsolutePath());
+    }
+
+    private void startRecording(final boolean b) {
+        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC, RECORDER_SAMPLERATE, RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING, bufferSize);
+
+        recorder.startRecording();
+
+        isRecording = true;
+
+        recordingThread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                writeAudioDataToFile(b);
+            }
+        }, "AudioRecorder Thread");
+
+        recordingThread.start();
+    }
+
+    private void stopRecording(boolean b) {
+        if (recorder != null) {
+            isRecording = false;
+
+            recorder.stop();
+            recorder.release();
+
+            recorder = null;
+            recordingThread = null;
+        }
+
+        if (b == true) {
+            copyWaveFile(getTempFilename(), getFilename());
+            deleteTempFile();
+        }
+
+        long totalDuration = getSoundDuration();
+
+        Log.i("Recorder", "Duration " + totalDuration);
+    }
+
+    private void deleteTempFile() {
+        File file = new File(getTempFilename());
+        file.delete();
+    }
+
+    private void writeAudioDataToFile(boolean b) {
+        byte data[] = new byte[bufferSize];
+        String filename = getTempFilename();
+        FileOutputStream os = null;
+
+        try {
+            os = new FileOutputStream(filename, b);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        int read = 0;
+
+        if (os != null) {
+            while (isRecording) {
+                read = recorder.read(data, 0, bufferSize);
+
+                if (AudioRecord.ERROR_INVALID_OPERATION != read) {
+                    try {
+                        os.write(data);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            try {
+                os.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void copyWaveFile(String inFilename, String outFilename) {
+        FileInputStream in = null;
+        FileOutputStream out = null;
+        long totalAudioLen = 0;
+        long totalDataLen = totalAudioLen + 44;
+        long longSampleRate = RECORDER_SAMPLERATE;
+        int channels = 2;
+        long byteRate = RECORDER_BPP * RECORDER_SAMPLERATE * channels / 8;
+
+        byte[] data = new byte[bufferSize];
+
+        try {
+            in = new FileInputStream(inFilename);
+            out = new FileOutputStream(outFilename, true);
+            totalAudioLen = in.getChannel().size() + out.getChannel().size();
+            totalDataLen = totalAudioLen + 44;
+
+            Log.i("Recorder", "Out channel size initially " + out.getChannel().size());
+
+            WriteWaveFileHeader(out, totalAudioLen, totalDataLen,
+                    longSampleRate, channels, byteRate, outFilename);
+            Log.i("Recorder", "Out channel size after header write " + out.getChannel().size());
+
+
+            while (in.read(data) != -1) {
+                out.write(data);
+            }
+            Log.i("Recorder", "Out channel size" + out.getChannel().size());
+            Log.i("Recorder", "in channel size" + in.getChannel().size());
+            in.close();
+            out.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    private void WriteWaveFileHeader(
+            FileOutputStream out, long totalAudioLen,
+            long totalDataLen, long longSampleRate, int channels,
+            long byteRate, String outFileName) throws IOException {
+
+        byte[] header = new byte[44];
+
+        header[0] = 'R';  // RIFF/WAVE header
+        header[1] = 'I';
+        header[2] = 'F';
+        header[3] = 'F';
+        header[4] = (byte) (totalDataLen & 0xff);
+        header[5] = (byte) ((totalDataLen >> 8) & 0xff);
+        header[6] = (byte) ((totalDataLen >> 16) & 0xff);
+        header[7] = (byte) ((totalDataLen >> 24) & 0xff);
+        header[8] = 'W';
+        header[9] = 'A';
+        header[10] = 'V';
+        header[11] = 'E';
+        header[12] = 'f';  // 'fmt ' chunk
+        header[13] = 'm';
+        header[14] = 't';
+        header[15] = ' ';
+        header[16] = 16;  // 4 bytes: size of 'fmt ' chunk
+        header[17] = 0;
+        header[18] = 0;
+        header[19] = 0;
+        header[20] = 1;  // format = 1
+        header[21] = 0;
+        header[22] = (byte) channels;
+        header[23] = 0;
+        header[24] = (byte) (longSampleRate & 0xff);
+        header[25] = (byte) ((longSampleRate >> 8) & 0xff);
+        header[26] = (byte) ((longSampleRate >> 16) & 0xff);
+        header[27] = (byte) ((longSampleRate >> 24) & 0xff);
+        header[28] = (byte) (byteRate & 0xff);
+        header[29] = (byte) ((byteRate >> 8) & 0xff);
+        header[30] = (byte) ((byteRate >> 16) & 0xff);
+        header[31] = (byte) ((byteRate >> 24) & 0xff);
+        header[32] = (byte) (2 * 16 / 8);  // block align
+        header[33] = 0;
+        header[34] = RECORDER_BPP;  // bits per sample
+        header[35] = 0;
+        header[36] = 'd';
+        header[37] = 'a';
+        header[38] = 't';
+        header[39] = 'a';
+        header[40] = (byte) (totalAudioLen & 0xff);
+        header[41] = (byte) ((totalAudioLen >> 8) & 0xff);
+        header[42] = (byte) ((totalAudioLen >> 16) & 0xff);
+        header[43] = (byte) ((totalAudioLen >> 24) & 0xff);
+
+        //out.write(header, 0, 44);
+        //out.getChannel().position(0).write(ByteBuffer.wrap(header));
+
+        RandomAccessFile rFile = new RandomAccessFile(outFileName, "rw");
+        rFile.seek(0);
+        rFile.write(header, 0, 44);
+        rFile.close();
+
+
+    }
+
+    public long getSoundDuration() {
+        File file = new File(getFilename());
+        long filesiZe = file.length();
+        int channels = 2;
+        long byteRate = RECORDER_BPP * RECORDER_SAMPLERATE * channels / 8;
+        long duration = filesiZe / byteRate;
+        return duration;
+    }
+
     @Override
     public void onRequestPermissionsResult(int actionCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
@@ -337,69 +551,28 @@ public class StartNewTaskActivity extends AppCompatActivity {
     }
 
     private boolean startRecording() {
-        Toast.makeText(getApplicationContext(), "Recording started.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "Recording started...", Toast.LENGTH_SHORT).show();
         try {
             // File storageDir = getApplicationContext().getCacheDir();
-            // mAudioFile = File.createTempFile(taskName.getText().toString(), ".aac", storageDir);
+            // mAudioFile = File.createTempFile(taskName.getText().toString(), ".wav", storageDir);
 
-            String f = Environment.getExternalStorageDirectory() + "/ClerkApp/" +
-                    taskName.getText() + "/" + taskName.getText() + ".aac";
-            mAudioFile = new File(f);
+            startRecording(false);
 
-            recorder = AudioRecorderBuilder.with(getApplicationContext())
-                    .fileName(f)
-                    .config(AudioRecorder.MediaRecorderConfig.DEFAULT)
-                    .loggable()
-                    .build();
+            myChronometer.setBase(SystemClock.elapsedRealtime());
+            myChronometer.stop();
+            myChronometer.start();
 
-            recorder.start(new AudioRecorder.OnStartListener() {
-                @Override
-                public void onStarted() {
-                    myChronometer.setBase(SystemClock.elapsedRealtime());
-                    myChronometer.stop();
-                    myChronometer.start();
-                }
-
-                @Override
-                public void onException(Exception e) {
-                    // error
-                }
-            });
-//
-//            mAudioFile = new File(f);
-//            if (mAudioFile.exists()) mAudioFile.delete();
-//            mAudioFile.createNewFile();
-//            if (mRecorder == null) {
-//                mRecorder = new MediaRecorder();
-//                mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-//                mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
-//                mRecorder.setOutputFile(mAudioFile.getAbsolutePath());
-//                mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-//            }
-//
-//            if (!isRecording) {
-//                try {
-//                    mRecorder.prepare();
-//                    mRecorder.start();
-//                    myChronometer.setBase(SystemClock.elapsedRealtime());
-//                    myChronometer.stop();
-//                    myChronometer.start();
-//                    isRecording = true;
-//                } catch (IOException e) {
-//                    Log.e("Audio", "prepare() failed");
-//                }
-//            }
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
-            Log.e(e.getMessage(), e.toString());
+            Log.e("Record error", e.toString());
+            return false;
         }
-        return true;
     }
 
     @Override
     public boolean onSupportNavigateUp() {
         onBackPressed();
-        finish();
+        //finish();
         return true;
     }
 
@@ -407,5 +580,49 @@ public class StartNewTaskActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         //getMenuInflater().inflate(R.men);
         return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (mPlayer != null)
+            if (mPlayer.isPlaying())
+                mPlayer.release();
+        if (recorder != null)
+            if (recorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                recorder.stop();
+                recorder.release();
+            }
+        super.onDestroy();
+    }
+
+
+    @Override
+    public void onBackPressed() {
+        //super.onBackPressed();
+
+        if (taskName.length() > 3) {
+            new AlertDialog.Builder(this)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .setTitle("Close Task")
+                    .setMessage("Do you really want to exit this task? All recorded files will be lost!")
+                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            if (mPlayer != null) mPlayer.release();
+                            if (recorder != null)
+                                if (recorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                                    recorder.stop();
+                                    recorder.release();
+                                }
+                            myChronometer.stop();
+                            File mydir = new File(Environment.getExternalStorageDirectory() + "/ClerkApp/" + taskName.getText());
+                            if (mydir.exists())
+                                deleteRecursive(mydir);
+                            finish();
+                        }
+                    })
+                    .setNegativeButton("No", null)
+                    .show();
+        } else super.onBackPressed();
     }
 }

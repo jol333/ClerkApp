@@ -67,7 +67,7 @@ public class AddPhotosActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent i = new Intent(AddPhotosActivity.this, CheckpointsActivity.class);
-                i.putExtra("taskPath",taskPath);
+                i.putExtra("taskPath", taskPath);
                 AddPhotosActivity.this.startActivity(i);
             }
         });
@@ -94,7 +94,9 @@ public class AddPhotosActivity extends AppCompatActivity {
         alert.setView(container);
         alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                addFolder(input.getText().toString());
+
+                if (input.getText().toString().length() > 0) {
+                    addFolder(input.getText().toString());
 
 //                LinearLayout folderListContainer = (LinearLayout) findViewById(R.id.ll);
 //
@@ -114,7 +116,9 @@ public class AddPhotosActivity extends AppCompatActivity {
 //                    }
 //                });
 
-                return;
+                    return;
+                } else
+                    Toast.makeText(getApplicationContext(), "Please enter a name to proceed", Toast.LENGTH_LONG).show();
             }
         });
 
@@ -202,11 +206,11 @@ public class AddPhotosActivity extends AppCompatActivity {
             }
 
             Uri outputFileUri = Uri.fromFile(newFile);
-            if(Build.VERSION.SDK_INT>=24){
-                try{
+            if (Build.VERSION.SDK_INT >= 24) {
+                try {
                     Method m = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
                     m.invoke(null);
-                }catch(Exception e){
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
